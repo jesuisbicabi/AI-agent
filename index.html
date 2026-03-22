@@ -75,7 +75,7 @@
   </div>
 
   <div class="mic-area">
-    <button class="mic-btn" id="mic-btn" onclick="toggleRecording()">
+    <button class="mic-btn" id="mic-btn" onclick="startRecording()">
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
         <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
@@ -83,6 +83,7 @@
         <line x1="8" y1="23" x2="16" y2="23"/>
       </svg>
     </button>
+    <button id="stop-btn" onclick="stopRecording()" style="display:none; margin-top:12px; padding:10px 24px; border:1.5px solid #e24b4a; border-radius:20px; background:#fff5f5; color:#e24b4a; font-size:14px; cursor:pointer;">Stop opname</button>
     <div class="status" id="status">Tik om in te spreken</div>
   </div>
 
@@ -162,6 +163,7 @@ function startRecording() {
   isRecording = true;
   transcript = '';
   document.getElementById('mic-btn').classList.add('recording');
+  document.getElementById('stop-btn').style.display = 'block';
   document.getElementById('status').textContent = 'Aan het luisteren...';
   document.getElementById('transcript').style.display = 'none';
   document.getElementById('action-area').style.display = 'none';
@@ -188,6 +190,7 @@ function stopRecording() {
   isRecording = false;
   if (recognition) { recognition.onend = null; recognition.stop(); }
   document.getElementById('mic-btn').classList.remove('recording');
+  document.getElementById('stop-btn').style.display = 'none';
   document.getElementById('status').textContent = 'Tik om in te spreken';
   if (transcript.trim()) document.getElementById('action-area').style.display = 'block';
 }
