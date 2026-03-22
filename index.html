@@ -204,7 +204,7 @@ async function saveNote() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': settings.anthropicKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514', max_tokens: 1000,
+        model: 'claude-sonnet-4-6', max_tokens: 1000,
         messages: [{ role: 'user', content: `Maak een nette Obsidian notitie van deze gesproken tekst. Gebruik Nederlandse taal. Voeg een passende titel toe als eerste regel (# Titel). Datum: ${dateStr}, Tijd: ${timeStr}. Gesproken tekst: "${transcript}". Geef alleen de markdown notitie terug, geen uitleg.` }]
       })
     });
@@ -252,7 +252,7 @@ async function askVault() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': settings.anthropicKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514', max_tokens: 1000,
+        model: 'claude-sonnet-4-6', max_tokens: 1000,
         messages: [{ role: 'user', content: `Dit zijn de bestanden in mijn Obsidian vault:\n${files}\n\nMijn vraag: "${transcript}"\n\nGeef een kort en duidelijk antwoord in het Nederlands. Als je een bestandspad weet, noem het dan.` }]
       })
     });
