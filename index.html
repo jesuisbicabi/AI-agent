@@ -160,7 +160,7 @@ function startRecording() {
   recognition = new SR();
   recognition.lang = 'nl-NL';
   recognition.continuous = true;
-  recognition.interimResults = false;
+  recognition.interimResults = true;
   isRecording = true;
   transcript = '';
   document.getElementById('mic-btn').classList.add('recording');
@@ -172,14 +172,17 @@ function startRecording() {
   document.getElementById('response-box').style.display = 'none';
 
   recognition.onresult = function(e) {
+    var interim = '';
     for (var i = e.resultIndex; i < e.results.length; i++) {
       if (e.results[i].isFinal) {
         transcript += e.results[i][0].transcript + ' ';
+      } else {
+        interim += e.results[i][0].transcript;
       }
     }
     var t = document.getElementById('transcript');
     t.style.display = 'block';
-    t.textContent = transcript.trim();
+    t.textContent = transcript.trim() + (interim ? ' ' + interim : '');
   };
 
   recognition.onerror = function(e) {
@@ -228,7 +231,7 @@ async function saveNote() {
     var now = new Date();
     var dateStr = now.toISOString().slice(0,10);
     var timeStr = now.toTimeString().slice(0,5);
-    var prompt = 'Analyseer deze gesproken tekst en geef een JSON response met precies deze structuur (geen uitleg, alleen JSON):\n{"map": "Inbox", "notitie": "# Titel\\n\\nInhoud"}\n\nKies de map op basis van de inhoud:\n- "Work": werkgerelateerd, taken voor werk, collegas, werkprocedures\n- "InMyMind": persoonlijke gedachten, ideeen, herinneringen, gevoelens\n- "Inbox": onduidelijk of gemengd\n- "2026": jaar-specifieke plannen of doelen\n\nDatum: ' + dateStr + ', Tijd: ' + timeStr + '\nGesproken tekst: "' + transcript + '"\n\nGeef ALLEEN de JSON terug, geen markdown backticks, geen uitleg.';
+    var prompt = 'Analyseer deze gesproken tekst en geef een JSON response met precies deze structuur (geen uitleg, alleen JSON):\n{"map": "Inbox", "notitie": "# Titel\\n\\nInhoud"}\n\nKies de map op basis van de inhoud:\n- "Work": werkgerelateerd, taken voor werk, collegas, werkprocedures\n- "InMyMind": persoonlijke gedachten, ideeen, herinneringen, gevoelens\n- "Inbox": onduidelijk of gemengd\n- "2026": jaar-specifieke plannen of doelen\n\nMaak de notitie rijk opgemaakt in Obsidian markdown. Voeg altijd toe:\n- Datum en Tijd bovenaan\n- Relevante kopjes op basis van inhoud zoals ## Actie, ## Voorbereiding, ## Notitie aan mezelf, ## Probleem, ## Status, ## Idee etc.\n- Gebruik checkboxes (- [ ]) voor actiepunten\n- Gebruik **bold** voor belangrijke woorden\n\nDatum: ' + dateStr + ', Tijd: ' + timeStr + '\nGesproken tekst: "' + transcript + '"\n\nGeef ALLEEN de JSON terug, geen markdown backticks, geen uitleg.';
 
     var resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -295,20 +298,4 @@ async function askVault() {
       headers: { 'Content-Type': 'application/json', 'x-api-key': settings.anthropicKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
       body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
     });
-    var d = await resp.json();
-    if (!d.content || !d.content[0]) throw new Error('API fout: ' + JSON.stringify(d));
-    box.textContent = d.content[0].text;
-  } catch(e) { box.textContent = 'Fout: ' + e.message; }
-}
-
-function showToast(msg) {
-  var t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(function(){ t.classList.remove('show'); }, 2500);
-}
-
-loadSettings();
-</script>
-</body>
-</html>
+    var
