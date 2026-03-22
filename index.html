@@ -160,7 +160,7 @@ function startRecording() {
   recognition = new SR();
   recognition.lang = 'nl-NL';
   recognition.continuous = true;
-  recognition.interimResults = true;
+  recognition.interimResults = false;
   isRecording = true;
   transcript = '';
   document.getElementById('mic-btn').classList.add('recording');
@@ -171,19 +171,15 @@ function startRecording() {
   document.getElementById('action-area').style.display = 'none';
   document.getElementById('response-box').style.display = 'none';
 
-  var lastInterim = '';
   recognition.onresult = function(e) {
-    lastInterim = '';
     for (var i = e.resultIndex; i < e.results.length; i++) {
       if (e.results[i].isFinal) {
         transcript += e.results[i][0].transcript + ' ';
-      } else {
-        lastInterim += e.results[i][0].transcript;
       }
     }
     var t = document.getElementById('transcript');
     t.style.display = 'block';
-    t.textContent = transcript.trim() + (lastInterim ? ' ' + lastInterim : '');
+    t.textContent = transcript.trim();
   };
 
   recognition.onerror = function(e) {
