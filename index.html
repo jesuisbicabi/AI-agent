@@ -19,7 +19,6 @@
   .field input { width: 100%; padding: 9px 12px; font-size: 14px; border: 1px solid #ddd; border-radius: 8px; background: #fafafa; color: #1a1a1a; }
   .field input:focus { outline: none; border-color: #aaa; background: #fff; }
   .save-settings-btn { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #fff; color: #1a1a1a; font-size: 14px; cursor: pointer; }
-  .save-settings-btn:hover { background: #f5f5f0; }
   .mic-area { text-align: center; margin: 1.5rem 0; }
   .mic-btn { width: 88px; height: 88px; border-radius: 50%; border: 1.5px solid #ddd; background: #fff; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s; }
   .mic-btn:hover { background: #f5f5f0; }
@@ -27,22 +26,17 @@
   .mic-btn svg { color: #555; }
   .mic-btn.recording svg { color: #e24b4a; }
   @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  .stop-btn { display: none; margin-top: 12px; padding: 10px 24px; border: 1.5px solid #e24b4a; border-radius: 20px; background: #fff5f5; color: #e24b4a; font-size: 14px; cursor: pointer; }
   .status { font-size: 14px; color: #888; margin-top: 10px; }
   .transcript-box { background: #fff; border: 1px solid #e5e5e0; border-radius: 10px; padding: 14px; margin: 1rem 0; font-size: 15px; color: #1a1a1a; min-height: 64px; line-height: 1.6; display: none; }
-  .folder-label { font-size: 13px; color: #888; margin-bottom: 8px; }
-  .folder-select { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1rem; }
-  .folder-btn { padding: 6px 16px; border: 1px solid #ddd; border-radius: 20px; font-size: 13px; cursor: pointer; background: #fff; color: #888; transition: all 0.15s; }
-  .folder-btn.active { border-color: #1a1a1a; color: #1a1a1a; font-weight: 500; }
-  .action-row { display: flex; gap: 8px; margin-top: 0.5rem; }
-  .action-btn { flex: 1; padding: 12px; border-radius: 10px; border: 1px solid #ddd; font-size: 14px; cursor: pointer; background: #fff; color: #1a1a1a; transition: all 0.15s; }
-  .action-btn:hover { background: #f5f5f0; }
-  .opslaan-btn { border-color: #1D9E75; color: #0F6E56; }
-  .opslaan-btn:hover { background: #f0faf6; }
-  .zoek-btn { border-color: #378ADD; color: #185FA5; }
-  .zoek-btn:hover { background: #f0f6fd; }
   .action-area { display: none; }
+  .folder-label { font-size: 13px; color: #888; margin-bottom: 8px; }
+  .action-row { display: flex; gap: 8px; margin-top: 0.5rem; }
+  .action-btn { flex: 1; padding: 12px; border-radius: 10px; border: 1px solid #ddd; font-size: 14px; cursor: pointer; background: #fff; color: #1a1a1a; }
+  .opslaan-btn { border-color: #1D9E75; color: #0F6E56; }
+  .zoek-btn { border-color: #378ADD; color: #185FA5; }
   .response-box { background: #fff; border: 1px solid #e5e5e0; border-radius: 10px; padding: 14px; margin-top: 1rem; font-size: 14px; color: #1a1a1a; line-height: 1.7; display: none; white-space: pre-wrap; }
-  .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: #fff; border-radius: 8px; padding: 10px 20px; font-size: 14px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 99; white-space: nowrap; }
+  .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: #fff; border-radius: 8px; padding: 10px 20px; font-size: 14px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 99; }
   .toast.show { opacity: 1; }
 </style>
 </head>
@@ -83,20 +77,13 @@
         <line x1="8" y1="23" x2="16" y2="23"/>
       </svg>
     </button>
-    <button id="stop-btn" onclick="stopRecording()" style="display:none; margin-top:12px; padding:10px 24px; border:1.5px solid #e24b4a; border-radius:20px; background:#fff5f5; color:#e24b4a; font-size:14px; cursor:pointer;">Stop opname</button>
+    <button class="stop-btn" id="stop-btn" onclick="stopRecording()">Stop opname</button>
     <div class="status" id="status">Tik om in te spreken</div>
   </div>
 
   <div class="transcript-box" id="transcript"></div>
 
   <div class="action-area" id="action-area">
-    <p class="folder-label">Opslaan in:</p>
-    <div class="folder-select">
-      <button class="folder-btn active" data-folder="Inbox" onclick="selectFolder(this)">Inbox</button>
-      <button class="folder-btn" data-folder="InMyMind" onclick="selectFolder(this)">InMyMind</button>
-      <button class="folder-btn" data-folder="Work" onclick="selectFolder(this)">Work</button>
-      <button class="folder-btn" data-folder="2026" onclick="selectFolder(this)">2026</button>
-    </div>
     <div class="action-row">
       <button class="action-btn opslaan-btn" onclick="saveNote()">Opslaan in vault</button>
       <button class="action-btn zoek-btn" onclick="askVault()">Zoek in vault</button>
@@ -109,20 +96,21 @@
 <div class="toast" id="toast"></div>
 
 <script>
-let recognition = null;
-let isRecording = false;
-let transcript = '';
-let selectedFolder = 'Inbox';
-let settings = {};
+var recognition = null;
+var isRecording = false;
+var transcript = '';
+var settings = {};
 
 function loadSettings() {
   try {
-    const s = localStorage.getItem('vaap_settings');
-    if (s) settings = JSON.parse(s);
-    if (settings.anthropicKey) document.getElementById('anthropic-key').value = settings.anthropicKey;
-    if (settings.githubToken) document.getElementById('github-token').value = settings.githubToken;
-    if (settings.githubUser) document.getElementById('github-user').value = settings.githubUser;
-    if (settings.githubRepo) document.getElementById('github-repo').value = settings.githubRepo;
+    var s = localStorage.getItem('vaap_settings');
+    if (s) {
+      settings = JSON.parse(s);
+      if (settings.anthropicKey) document.getElementById('anthropic-key').value = settings.anthropicKey;
+      if (settings.githubToken) document.getElementById('github-token').value = settings.githubToken;
+      if (settings.githubUser) document.getElementById('github-user').value = settings.githubUser;
+      if (settings.githubRepo) document.getElementById('github-repo').value = settings.githubRepo;
+    }
   } catch(e) {}
 }
 
@@ -142,19 +130,8 @@ function toggleSettings() {
   document.getElementById('settings-panel').classList.toggle('open');
 }
 
-function selectFolder(btn) {
-  document.querySelectorAll('.folder-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  selectedFolder = btn.dataset.folder;
-}
-
-function toggleRecording() {
-  if (isRecording) { stopRecording(); return; }
-  startRecording();
-}
-
 function startRecording() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { showToast('Spraakherkenning niet beschikbaar'); return; }
   recognition = new SR();
   recognition.lang = 'nl-NL';
@@ -169,20 +146,26 @@ function startRecording() {
   document.getElementById('action-area').style.display = 'none';
   document.getElementById('response-box').style.display = 'none';
 
-  recognition.onresult = (e) => {
-    let interim = '', final = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
+  recognition.onresult = function(e) {
+    var final = '';
+    for (var i = e.resultIndex; i < e.results.length; i++) {
       if (e.results[i].isFinal) final += e.results[i][0].transcript;
-      else interim += e.results[i][0].transcript;
     }
     if (final) transcript += final;
-    const t = document.getElementById('transcript');
+    var t = document.getElementById('transcript');
     t.style.display = 'block';
-    t.textContent = transcript + interim;
+    t.textContent = transcript;
   };
 
-  recognition.onerror = (e) => { stopRecording(); showToast('Fout: ' + e.error); };
-  recognition.onend = () => { if (isRecording) recognition.start(); };
+  recognition.onerror = function(e) {
+    if (e.error !== 'aborted') showToast('Fout: ' + e.error);
+    stopRecording();
+  };
+
+  recognition.onend = function() {
+    if (isRecording) recognition.start();
+  };
+
   recognition.start();
 }
 
@@ -200,45 +183,30 @@ async function saveNote() {
   if (!settings.anthropicKey || !settings.githubToken) { showToast('Vul eerst instellingen in'); toggleSettings(); return; }
   showToast('Even geduld...');
   try {
-    const now = new Date();
-    const dateStr = now.toISOString().slice(0,10);
-    const timeStr = now.toTimeString().slice(0,5);
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    var now = new Date();
+    var dateStr = now.toISOString().slice(0,10);
+    var timeStr = now.toTimeString().slice(0,5);
+    var prompt = 'Analyseer deze gesproken tekst en geef een JSON response met precies deze structuur (geen uitleg, alleen JSON):\n{"map": "InMyMind", "notitie": "# Titel\\n\\nInhoud"}\n\nKies de map op basis van de inhoud:\n- "Work": werkgerelateerd, taken voor werk, collegas, werkprocedures\n- "InMyMind": persoonlijke gedachten, ideeen, herinneringen, gevoelens\n- "Inbox": onduidelijk of gemengd\n- "2026": jaar-specifieke plannen of doelen\n\nDatum: ' + dateStr + ', Tijd: ' + timeStr + '\nGesproken tekst: "' + transcript + '"\n\nGeef ALLEEN de JSON terug, geen markdown backticks, geen uitleg.';
+
+    var resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': settings.anthropicKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6', max_tokens: 1000,
-        messages: [{ role: "user", content: `Analyseer deze gesproken tekst en geef een JSON response met precies deze structuur (geen uitleg, alleen JSON):
-{
-  "map": "InMyMind",
-  "notitie": "# Titel\n\nInhoud"
-}
-
-Kies de map op basis van de inhoud:
-- "Work": werkgerelateerd, taken voor werk, collegas, werkprocedures
-- "InMyMind": persoonlijke gedachten, ideeen, herinneringen, gevoelens
-- "Inbox": onduidelijk of gemengd
-- "2026": jaar-specifieke plannen of doelen
-
-Datum: ${dateStr}, Tijd: ${timeStr}
-Gesproken tekst: "${transcript}"
-
-Geef ALLEEN de JSON terug, geen markdown backticks, geen uitleg.` }]
-      })
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
     });
-    const data = await resp.json();
-    if (!data.content || !data.content[0]) { throw new Error('API fout: ' + JSON.stringify(data)); }
-    const responseText = data.content[0].text.trim();
-    let parsed;
-    try { parsed = JSON.parse(responseText); } catch(e) { parsed = { map: selectedFolder, notitie: responseText }; }
-    const autoMap = ['Work','InMyMind','Inbox','2026'].includes(parsed.map) ? parsed.map : selectedFolder;
-    const noteContent = parsed.notitie || responseText;
-    const titleMatch = noteContent.match(/^#\s+(.+)/m);
-    const title = titleMatch ? titleMatch[1].trim().replace(/[\/\\?%*:|"<>]/g, '-') : `notitie-${dateStr}`;
-    const filename = `${autoMap}/${dateStr}-${title}.md`;
+    var data = await resp.json();
+    if (!data.content || !data.content[0]) throw new Error('API fout: ' + JSON.stringify(data));
+
+    var responseText = data.content[0].text.trim();
+    var parsed;
+    try { parsed = JSON.parse(responseText); } catch(e) { parsed = { map: 'Inbox', notitie: responseText }; }
+    var autoMap = ['Work','InMyMind','Inbox','2026'].includes(parsed.map) ? parsed.map : 'Inbox';
+    var noteContent = parsed.notitie || responseText;
+    var titleMatch = noteContent.match(/^#\s+(.+)/m);
+    var title = titleMatch ? titleMatch[1].trim().replace(/[\/\\?%*:|"<>]/g, '-') : 'notitie-' + dateStr;
+    var filename = autoMap + '/' + dateStr + '-' + title + '.md';
     await saveToGitHub(filename, noteContent);
     showToast('Opgeslagen in ' + autoMap + '!');
-    const box = document.getElementById('response-box');
+    var box = document.getElementById('response-box');
     box.style.display = 'block';
     box.textContent = 'Opgeslagen als:\n' + filename;
     transcript = '';
@@ -248,32 +216,56 @@ Geef ALLEEN de JSON terug, geen markdown backticks, geen uitleg.` }]
 }
 
 async function saveToGitHub(path, content) {
-  const { githubUser: user, githubRepo: repo, githubToken: token } = settings;
-  const url = `https://api.github.com/repos/${user}/${repo}/contents/${path}`;
-  const encoded = btoa(unescape(encodeURIComponent(content)));
-  let sha = null;
-  try { const c = await fetch(url, { headers: { Authorization: `token ${token}` }}); if (c.ok) { const d = await c.json(); sha = d.sha; } } catch(e) {}
-  const body = { message: `VAAP: ${path}`, content: encoded };
+  var user = settings.githubUser;
+  var repo = settings.githubRepo;
+  var token = settings.githubToken;
+  var url = 'https://api.github.com/repos/' + user + '/' + repo + '/contents/' + path;
+  var encoded = btoa(unescape(encodeURIComponent(content)));
+  var sha = null;
+  try {
+    var check = await fetch(url, { headers: { Authorization: 'token ' + token }});
+    if (check.ok) { var d = await check.json(); sha = d.sha; }
+  } catch(e) {}
+  var body = { message: 'VAAP: ' + path, content: encoded };
   if (sha) body.sha = sha;
-  const r = await fetch(url, { method: 'PUT', headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  if (!r.ok) { const err = await r.json(); throw new Error(err.message || 'GitHub fout'); }
+  var r = await fetch(url, { method: 'PUT', headers: { Authorization: 'token ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) { var err = await r.json(); throw new Error(err.message || 'GitHub fout'); }
 }
 
 async function askVault() {
   if (!transcript.trim()) return;
   if (!settings.anthropicKey || !settings.githubToken) { showToast('Vul eerst instellingen in'); toggleSettings(); return; }
   showToast('Zoeken in vault...');
-  const box = document.getElementById('response-box');
+  var box = document.getElementById('response-box');
   box.style.display = 'block';
   box.textContent = 'Even zoeken...';
   try {
-    const { githubUser: user, githubRepo: repo, githubToken: token } = settings;
-    const r = await fetch(`https://api.github.com/repos/${user}/${repo}/git/trees/main?recursive=1`, { headers: { Authorization: `token ${token}` }});
-    const data = await r.json();
-    const files = data.tree ? data.tree.filter(f => f.path.endsWith('.md')).map(f => f.path).join('\n') : 'Geen bestanden';
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    var user = settings.githubUser;
+    var repo = settings.githubRepo;
+    var token = settings.githubToken;
+    var r = await fetch('https://api.github.com/repos/' + user + '/' + repo + '/git/trees/main?recursive=1', { headers: { Authorization: 'token ' + token }});
+    var data = await r.json();
+    var files = data.tree ? data.tree.filter(function(f){ return f.path.endsWith('.md'); }).map(function(f){ return f.path; }).join('\n') : 'Geen bestanden';
+    var prompt = 'Dit zijn de bestanden in mijn Obsidian vault:\n' + files + '\n\nMijn vraag: "' + transcript + '"\n\nGeef een kort en duidelijk antwoord in het Nederlands. Als je een bestandspad weet, noem het dan.';
+    var resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': settings.anthropicKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6', max_tokens: 1000,
-        messages: [{ role: 'user', content: `Dit zijn de bestanden in mijn Obsidian vault:\n${files}\n\nMijn vra
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
+    });
+    var d = await resp.json();
+    if (!d.content || !d.content[0]) throw new Error('API fout: ' + JSON.stringify(d));
+    box.textContent = d.content[0].text;
+  } catch(e) { box.textContent = 'Fout: ' + e.message; }
+}
+
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 2500);
+}
+
+loadSettings();
+</script>
+</body>
+</html>
