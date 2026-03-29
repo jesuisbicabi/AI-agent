@@ -264,29 +264,15 @@ async function saveVitalityCheckin() {
     var filePath = getVitalityFilePath();
     var todayHeading = getTodayHeading();
 
-    // Stap 1: haal het huidige maandbestand op
-    var fileContent = '';
-    var sha = null;
+
+
     var user = settings.githubUser;
     var repo = settings.githubRepo;
     var token = settings.githubToken;
     var encodedPath = filePath.split('/').map(encodeURIComponent).join('/');
     var url = 'https://api.github.com/repos/' + user + '/' + repo + '/contents/' + encodedPath;
 
-    var check = await fetch(url, { headers: { Authorization: 'token ' + token } });
-    if (check.ok) {
-      var fileData = await check.json();
-      sha = fileData.sha;
-      fileContent = decodeURIComponent(escape(atob(fileData.content.replace(/\n/g, ''))));
-    } else if (check.status === 404) {
-      showToast('Maandbestand niet gevonden: ' + filePath);
-      box.textContent = 'Fout: bestand niet gevonden:\n' + filePath;
-      return;
-    } else {
-      throw new Error('GitHub fout: ' + check.status);
-    }
-
-    // Stap 2: laat Claude de check-in formatteren
+    // Stap 1: laat Claude de check-in formatteren
     var prompt = 'Verwerk deze gesproken check-in naar één korte markdown-regel voor een vitality logboek.\n\nFormaat: - HH:MM [emoji] [korte beschrijving]\n\nEmoji keuze:\n💊 voor medicijnen of supplementen\n😶 voor stemming (voeg score toe als genoemd, bijv. 😶 3/5)\n⚡ voor energie (voeg score toe als genoemd)\n🤕 voor lichamelijke klachten zoals migraine, pijn, misselijkheid\n📝 voor activiteit of bezigheid\n\nMeerdere onderwerpen = meerdere regels.\nHoud het beknopt maar informatief. Geen uitleg, alleen de regel(s).\n\nTijd: ' + timeStr + '\nGesproken tekst: "' + transcript + '"\n\nGeef ALLEEN de markdown-regel(s) terug, niets anders.';
 
     var resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -303,6 +289,22 @@ async function saveVitalityCheckin() {
     var apiData = await resp.json();
     if (!apiData.content || !apiData.content[0]) throw new Error('API fout: ' + JSON.stringify(apiData));
     var newLines = apiData.content[0].text.trim();
+
+    // Stap 2: haal nu VERS het bestand op (zodat handmatige wijzigingen niet worden overschreven)
+    var fileContent = '';
+    var sha = null;
+    var check = await fetch(url, { headers: { Authorization: 'token ' + token } });
+    if (check.ok) {
+      var fileData = await check.json();
+      sha = fileData.sha;
+      fileContent = decodeURIComponent(escape(atob(fileData.content.replace(/\n/g, ''))));
+    } else if (check.status === 404) {
+      showToast('Maandbestand niet gevonden');
+      box.textContent = 'Fout: bestand niet gevonden:\n' + filePath;
+      return;
+    } else {
+      throw new Error('GitHub fout: ' + check.status);
+    }
 
     // Stap 3: voeg check-in in op de juiste plek in het bestand
     var updatedContent = insertCheckin(fileContent, todayHeading, newLines);
