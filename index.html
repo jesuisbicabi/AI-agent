@@ -306,9 +306,9 @@ async function saveVitalityCheckin() {
       sha = fileData.sha;
       fileContent = decodeURIComponent(escape(atob(fileData.content.replace(/\n/g, ''))));
     } else if (check.status === 404) {
-      showToast('Maandbestand niet gevonden');
-      box.textContent = 'Fout: bestand niet gevonden:\n' + filePath;
-      return;
+      // bestand bestaat nog niet op GitHub — start met lege inhoud, wordt aangemaakt
+      fileContent = '';
+      sha = null;
     } else {
       throw new Error('GitHub fout: ' + check.status);
     }
