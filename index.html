@@ -245,7 +245,10 @@ function startRecording() {
   recognition = new SR();
   recognition.lang = 'nl-NL';
   recognition.continuous = true;
-  recognition.interimResults = true;
+  // BELANGRIJK: interimResults MOET false blijven. Op Android Chrome herhaalt
+  // de spraak-API tussentijdse resultaten telkens als 'definitief' -> echo
+  // (dubbele woorden). Dit is de gedocumenteerde oorzaak; niet op true zetten.
+  recognition.interimResults = false;
   isRecording = true;
   transcript = '';
   finalTranscript = '';      // gecommitte tekst van eerder geëindigde sessies
