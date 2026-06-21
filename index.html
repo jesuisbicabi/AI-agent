@@ -288,14 +288,16 @@ function startRecording() {
     // Commit de finale tekst van deze sessie vóór de herstart, zodat de nieuwe
     // sessie schoon begint en niets dubbel wordt geteld.
     if (sessionFinal) { finalTranscript += sessionFinal; sessionFinal = ''; }
-    // Chrome stopt vanzelf na stilte/tijdslimiet; herstart met kleine vertraging
-    // zodat start() niet faalt met InvalidStateError.
+    // Herstart ZO SNEL MOGELIJK om geen gesproken woorden te missen in het
+    // gaatje tussen twee sessies. Lukt start() nog niet (engine nog bezig),
+    // dan heel even wachten en opnieuw proberen i.p.v. een vaste vertraging.
     if (isRecording) {
-      setTimeout(function() {
-        if (isRecording) {
-          try { recognition.start(); } catch(e) {}
-        }
-      }, 300);
+      var tryStart = function() {
+        if (!isRecording) return;
+        try { recognition.start(); }
+        catch(e) { setTimeout(tryStart, 150); }
+      };
+      tryStart();
     }
   };
 
