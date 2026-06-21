@@ -148,6 +148,17 @@ function getTimeStr() {
   return now.toTimeString().slice(0,5);
 }
 
+// Schat de Claude-kosten op basis van het tokenverbruik (claude-sonnet-4-6:
+// $3 per 1M invoer-tokens, $15 per 1M uitvoer-tokens). USD ~ EUR.
+function estimateCost(usage) {
+  if (!usage) return '';
+  var inTok = usage.input_tokens || 0;
+  var outTok = usage.output_tokens || 0;
+  var usd = (inTok / 1000000) * 3 + (outTok / 1000000) * 15;
+  var centen = (usd * 100).toFixed(2);
+  return '💲 ~$' + usd.toFixed(4) + ' (±' + centen + ' cent) — ' + inTok + ' in / ' + outTok + ' uit';
+}
+
 function loadSettings() {
   try {
     var s = localStorage.getItem('vaap_settings');
@@ -339,7 +350,7 @@ async function saveVitalityCheckin() {
     if (!r.ok) { var err = await r.json(); throw new Error(err.message || 'GitHub schrijffout'); }
 
     showToast('Check-in opgeslagen! 💜');
-    box.textContent = 'Toegevoegd aan ' + todayHeading + ':\n\n' + newLines;
+    box.textContent = 'Toegevoegd aan ' + todayHeading + ':\n\n' + newLines + '\n\n' + estimateCost(apiData.usage);
     transcript = '';
     document.getElementById('transcript').style.display = 'none';
     document.getElementById('action-area').style.display = 'none';
@@ -592,7 +603,7 @@ async function saveNote() {
     showToast('Opgeslagen in dagnotitie!');
     var box = document.getElementById('response-box');
     box.style.display = 'block';
-    box.textContent = 'Opgeslagen als:\n' + filename + maandStatus;
+    box.textContent = 'Opgeslagen als:\n' + filename + maandStatus + '\n\n' + estimateCost(data.usage);
     transcript = '';
     document.getElementById('transcript').style.display = 'none';
     document.getElementById('action-area').style.display = 'none';
