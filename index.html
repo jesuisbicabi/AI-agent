@@ -423,6 +423,55 @@ function insertCheckin(fileContent, todayHeading, dailyLink, newLines) {
   }
 }
 
+// Voeg een 📌 Speerpunten-blok toe aan de dag-sectie van het maandoverzicht.
+// Nieuwste dag bovenaan; speerpunten staan bovenaan de dag (vóór de check-ins).
+function insertSpeerpunten(fileContent, todayHeading, dailyLink, newLines) {
+  var header = '**📌 Speerpunten**';
+  var dayIndex = fileContent.indexOf(todayHeading);
+
+  if (dayIndex === -1) {
+    // Dag bestaat nog niet — voeg BOVENAAN toe (vóór de eerste ## heading)
+    var headingWithLink = todayHeading + ' ' + dailyLink;
+    var dayBlock = headingWithLink + '\n\n' + header + '\n' + newLines + '\n\n';
+    var firstHeading = fileContent.search(/^## /m);
+    if (firstHeading === -1) {
+      return dayBlock + fileContent.trimStart();
+    }
+    return fileContent.slice(0, firstHeading) + dayBlock + fileContent.slice(firstHeading);
+  }
+
+  // Dag bestaat al — zorg dat de dag-link op de heading-regel staat
+  var dayLineEnd = fileContent.indexOf('\n', dayIndex);
+  if (dayLineEnd === -1) dayLineEnd = fileContent.length;
+  var dayLine = fileContent.slice(dayIndex, dayLineEnd);
+  if (dayLine.indexOf('[[') === -1) {
+    fileContent = fileContent.slice(0, dayLineEnd) + ' ' + dailyLink + fileContent.slice(dayLineEnd);
+  }
+
+  // Bepaal de dag-sectie (tot de volgende ## heading of einde bestand)
+  var afterDay = fileContent.indexOf('\n## ', dayIndex + todayHeading.length);
+  var daySection = afterDay === -1 ? fileContent.slice(dayIndex) : fileContent.slice(dayIndex, afterDay);
+
+  var spIndex = daySection.indexOf(header);
+  var updatedDaySection;
+  if (spIndex !== -1) {
+    // Speerpunten-blok bestaat al — voeg regels toe ná de bestaande bullets
+    var afterSp = daySection.indexOf('\n\n', spIndex);
+    var insertAt = afterSp === -1 ? daySection.length : afterSp;
+    updatedDaySection = daySection.slice(0, insertAt) + '\n' + newLines + daySection.slice(insertAt);
+  } else {
+    // Geen speerpunten-blok — voeg toe direct na de heading-regel (bovenaan de dag)
+    var hdrEnd = daySection.indexOf('\n');
+    if (hdrEnd === -1) hdrEnd = daySection.length;
+    updatedDaySection = daySection.slice(0, hdrEnd) + '\n\n' + header + '\n' + newLines + daySection.slice(hdrEnd);
+  }
+
+  if (afterDay === -1) {
+    return fileContent.slice(0, dayIndex) + updatedDaySection;
+  }
+  return fileContent.slice(0, dayIndex) + updatedDaySection + fileContent.slice(afterDay);
+}
+
 // ─── BESTAANDE FUNCTIES ──────────────────────────────────────────────────────
 
 async function saveNote() {
@@ -446,20 +495,43 @@ async function saveNote() {
     var NOTE_BASE = "InMyMind/01 - Dagelijks leven \uD83C\uDFE0 daily notes, weekly reviews, to-do's/01 daily";
     var filename = NOTE_BASE + '/' + dateStr + '.md';
 
-    var prompt = 'Analyseer deze gesproken tekst en geef een JSON response met precies deze structuur (geen uitleg, alleen JSON):\n{"notitie": "# Titel\\n\\nInhoud"}\n\nMaak de notitie rijk opgemaakt in Obsidian markdown. Regels:\n- De titel bevat GEEN datum\n- Zet direct onder de titel: \uD83D\uDCC5 Datum: ' + dateDisplay + ' | \uD83D\uDD50 Tijd: ' + timeStr + ' | ' + dagNaam + '\n- Gebruik ALTIJD emoji-icoontjes bij sectiekoppen, bijv. \uD83D\uDCCC ## Actie, \uD83D\uDCDD ## Notitie aan mezelf, \uD83D\uDCA1 ## Idee, \u2705 ## Taken, \u26A0\uFE0F ## Probleem, \uD83D\uDD04 ## Status, \uD83D\uDCCB ## Voorbereiding\n- Gebruik checkboxes (- [ ]) voor actiepunten\n- Gebruik **bold** voor belangrijke woorden\n\nGesproken tekst: "' + transcript + '"\n\nGeef ALLEEN de JSON terug, geen markdown backticks, geen uitleg.';
+    var prompt = 'Analyseer deze gesproken tekst en geef een JSON response met precies deze structuur (geen uitleg, alleen JSON):\n{"notitie": "# Titel\\n\\nInhoud", "speerpunten": ["punt 1", "punt 2", "punt 3"]}\n\nMaak de notitie rijk opgemaakt in Obsidian markdown. Regels:\n- De titel bevat GEEN datum\n- Zet direct onder de titel: \uD83D\uDCC5 Datum: ' + dateDisplay + ' | \uD83D\uDD50 Tijd: ' + timeStr + ' | ' + dagNaam + '\n- Gebruik ALTIJD emoji-icoontjes bij sectiekoppen, bijv. \uD83D\uDCCC ## Actie, \uD83D\uDCDD ## Notitie aan mezelf, \uD83D\uDCA1 ## Idee, \u2705 ## Taken, \u26A0\uFE0F ## Probleem, \uD83D\uDD04 ## Status, \uD83D\uDCCB ## Voorbereiding\n- Gebruik checkboxes (- [ ]) voor actiepunten\n- Gebruik **bold** voor belangrijke woorden\n- "speerpunten": de kernpunten van de dag voor in een maandoverzicht. Maak er zoveel als de tekst rechtvaardigt: bij een kort verhaal 2 a 3, bij een lang verhaal met veel onderwerpen gerust 6 tot 10. Vat elk los onderwerp samen in een eigen punt. Elk punt begint met een passende emoji en is kort (max ~12 woorden), geen datum of tijd, geen opmaak-tekens.\n\nGesproken tekst: "' + transcript + '"\n\nGeef ALLEEN de JSON terug, geen markdown backticks, geen uitleg.';
 
     var resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': settings.anthropicKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
     });
     var data = await resp.json();
     if (!data.content || !data.content[0]) throw new Error('API fout: ' + JSON.stringify(data));
 
     var responseText = data.content[0].text.trim();
-    var parsed;
-    try { parsed = JSON.parse(responseText); } catch(e) { parsed = { notitie: responseText }; }
-    var noteContent = parsed.notitie || responseText;
+    // Strip eventuele markdown-codeblokken rondom de JSON
+    responseText = responseText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+    var parsed = null;
+    try {
+      parsed = JSON.parse(responseText);
+    } catch(e) {
+      // Ongeldige JSON (bijv. afgekapt) — vis de notitie eruit i.p.v. rauwe JSON te tonen
+      var m = responseText.match(/"notitie"\s*:\s*"((?:\\.|[^"\\])*)"/);
+      if (m) {
+        try { parsed = { notitie: JSON.parse('"' + m[1] + '"') }; }
+        catch(e2) { parsed = { notitie: m[1].replace(/\\n/g, '\n').replace(/\\"/g, '"') }; }
+      } else {
+        // Geen herkenbare JSON — verwijder in elk geval de {"notitie": " rommel
+        var cleaned = responseText
+          .replace(/^\s*\{\s*"notitie"\s*:\s*"?/, '')
+          .replace(/"\s*,\s*"speerpunten"[\s\S]*$/, '')
+          .replace(/"\s*\}\s*$/, '');
+        parsed = { notitie: cleaned };
+      }
+    }
+    var noteContent = (parsed && parsed.notitie) || responseText;
+    var speerpunten = Array.isArray(parsed.speerpunten) ? parsed.speerpunten : [];
+    var speerLines = speerpunten
+      .map(function(s) { return '- ' + String(s).replace(/^[-\s]+/, '').trim(); })
+      .filter(function(l) { return l.length > 2; })
+      .join('\n');
 
     var user = settings.githubUser;
     var repo = settings.githubRepo;
@@ -490,10 +562,36 @@ async function saveNote() {
     var r = await fetch(url, { method: 'PUT', headers: { Authorization: 'token ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!r.ok) { var err = await r.json(); throw new Error(err.message || 'GitHub fout'); }
 
+    // Speerpunten toevoegen aan het maandoverzicht (zelfde hub-bestand als vitality)
+    var maandStatus = '';
+    if (speerLines) {
+      try {
+        var monthPath = getVitalityFilePath();
+        var monthHeading = getTodayHeading();
+        var monthLink = getDailyLink();
+        var mEncodedPath = monthPath.split('/').map(encodeURIComponent).join('/');
+        var mUrl = 'https://api.github.com/repos/' + user + '/' + repo + '/contents/' + mEncodedPath;
+        var mContent = '';
+        var mSha = null;
+        var mCheck = await fetch(mUrl, { headers: { Authorization: 'token ' + token } });
+        if (mCheck.ok) {
+          var mData = await mCheck.json();
+          mSha = mData.sha;
+          mContent = decodeURIComponent(escape(atob(mData.content.replace(/\n/g, ''))));
+        }
+        var mUpdated = insertSpeerpunten(mContent, monthHeading, monthLink, speerLines);
+        var mEncoded = btoa(unescape(encodeURIComponent(mUpdated)));
+        var mBody = { message: 'Speerpunten: ' + dateStr, content: mEncoded };
+        if (mSha) mBody.sha = mSha;
+        var mr = await fetch(mUrl, { method: 'PUT', headers: { Authorization: 'token ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(mBody) });
+        maandStatus = mr.ok ? '\n\n+ speerpunten in maandoverzicht' : '\n\n(maandoverzicht overgeslagen)';
+      } catch(me) { maandStatus = '\n\n(maandoverzicht overgeslagen: ' + me.message + ')'; }
+    }
+
     showToast('Opgeslagen in dagnotitie!');
     var box = document.getElementById('response-box');
     box.style.display = 'block';
-    box.textContent = 'Opgeslagen als:\n' + filename;
+    box.textContent = 'Opgeslagen als:\n' + filename + maandStatus;
     transcript = '';
     document.getElementById('transcript').style.display = 'none';
     document.getElementById('action-area').style.display = 'none';
