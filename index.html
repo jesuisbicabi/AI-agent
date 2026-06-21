@@ -70,6 +70,7 @@
       <input type="text" id="github-repo" value="obsidian-vault" />
     </div>
     <button class="save-settings-btn" onclick="saveSettings()">Opslaan</button>
+    <button class="save-settings-btn" style="margin-top:8px;background:#555" onclick="resetCostCounter()">🗑️ Kostenteller op nul</button>
   </div>
 
   <div class="mic-area">
@@ -148,24 +149,32 @@ function getTimeStr() {
   return now.toTimeString().slice(0,5);
 }
 
-// Schat de Claude-kosten op basis van het tokenverbruik (claude-sonnet-4-6:
-// $3 per 1M invoer-tokens, $15 per 1M uitvoer-tokens). USD ~ EUR.
+// Anthropic rekent in dollars; we tonen euro's via een vaste (aanpasbare) koers.
+var EUR_PER_USD = 0.92;
+
+// Kost in dollars op basis van tokenverbruik (claude-sonnet-4-6: $3/1M in, $15/1M uit).
+function costUsd(usage) {
+  if (!usage) return 0;
+  var inTok = usage.input_tokens || 0;
+  var outTok = usage.output_tokens || 0;
+  return (inTok / 1000000) * 3 + (outTok / 1000000) * 15;
+}
+
+// Schat de Claude-kosten van deze opslag, in euro's.
 function estimateCost(usage) {
   if (!usage) return '';
   var inTok = usage.input_tokens || 0;
   var outTok = usage.output_tokens || 0;
-  var usd = (inTok / 1000000) * 3 + (outTok / 1000000) * 15;
-  var centen = (usd * 100).toFixed(2);
-  return '💲 ~$' + usd.toFixed(4) + ' (±' + centen + ' cent) — ' + inTok + ' in / ' + outTok + ' uit';
+  var eur = costUsd(usage) * EUR_PER_USD;
+  var centen = (eur * 100).toFixed(2);
+  return '💶 ~€' + eur.toFixed(4) + ' (±' + centen + ' cent) — ' + inTok + ' in / ' + outTok + ' uit';
 }
 
 // Telt elke opslag op en bewaart het maandtotaal lokaal (reset automatisch
 // bij een nieuwe maand). Geeft een samenvatting van het lopende totaal terug.
 function recordCost(usage) {
   if (!usage) return '';
-  var inTok = usage.input_tokens || 0;
-  var outTok = usage.output_tokens || 0;
-  var usd = (inTok / 1000000) * 3 + (outTok / 1000000) * 15;
+  var usd = costUsd(usage);
   var maand = new Date().toISOString().slice(0, 7); // YYYY-MM
   var store = {};
   try { store = JSON.parse(localStorage.getItem('vaap_costs') || '{}'); } catch(e) {}
@@ -173,8 +182,18 @@ function recordCost(usage) {
   store.totalUsd = (store.totalUsd || 0) + usd;
   store.count = (store.count || 0) + 1;
   try { localStorage.setItem('vaap_costs', JSON.stringify(store)); } catch(e) {}
-  var totCent = (store.totalUsd * 100).toFixed(1);
-  return '📊 Totaal ' + maand + ': $' + store.totalUsd.toFixed(4) + ' (±' + totCent + ' cent) over ' + store.count + ' opslagen';
+  var eur = store.totalUsd * EUR_PER_USD;
+  var totCent = (eur * 100).toFixed(1);
+  return '📊 Totaal ' + maand + ': €' + eur.toFixed(4) + ' (±' + totCent + ' cent) over ' + store.count + ' opslagen';
+}
+
+// Zet de maandteller op nul (na bevestiging).
+function resetCostCounter() {
+  if (!confirm('Maandteller op nul zetten? Dit wist alleen de teller in de app, niet je notities of je verbruik bij Anthropic.')) return;
+  try { localStorage.removeItem('vaap_costs'); } catch(e) {}
+  showToast('Kostenteller gereset');
+  var box = document.getElementById('response-box');
+  if (box) { box.style.display = 'block'; box.textContent = '📊 Maandteller staat weer op €0,00'; }
 }
 
 function loadSettings() {
