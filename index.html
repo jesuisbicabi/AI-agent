@@ -110,7 +110,6 @@
 var recognition = null;
 var isRecording = false;
 var transcript = '';
-var finalTranscript = '';
 var selectedFolder = 'InMyMind';
 var settings = {};
 
@@ -251,8 +250,6 @@ function startRecording() {
   recognition.interimResults = false;
   isRecording = true;
   transcript = '';
-  finalTranscript = '';      // gecommitte tekst van eerder geëindigde sessies
-  var sessionFinal = '';     // finale tekst van de HUIDIGE herkenningssessie
   document.getElementById('mic-btn').classList.add('recording');
   document.getElementById('stop-btn').style.display = 'block';
   document.getElementById('status').textContent = 'Aan het luisteren...';
@@ -262,22 +259,16 @@ function startRecording() {
   document.getElementById('response-box').style.display = 'none';
 
   recognition.onresult = function(e) {
-    // Bouw de tekst van de HUIDIGE sessie elke keer volledig opnieuw op (REPLACE),
-    // nooit incrementeel optellen. Dit voorkomt echo/dubbele woorden wanneer mobiele
-    // Chrome resultIndex op 0 laat staan en zo alle finals telkens herhaalt.
-    sessionFinal = '';
-    var interim = '';
-    for (var i = 0; i < e.results.length; i++) {
+    // Simpele, beproefde optelling: voeg alleen finale resultaten toe aan de
+    // lopende transcript. interimResults=false, dus geen echo.
+    for (var i = e.resultIndex; i < e.results.length; i++) {
       if (e.results[i].isFinal) {
-        sessionFinal += e.results[i][0].transcript + ' ';
-      } else {
-        interim += e.results[i][0].transcript;
+        transcript += e.results[i][0].transcript + ' ';
       }
     }
-    transcript = (finalTranscript + sessionFinal).trim();
     var t = document.getElementById('transcript');
     t.style.display = 'block';
-    t.textContent = (finalTranscript + sessionFinal + interim).trim();
+    t.textContent = transcript.trim();
   };
 
   recognition.onerror = function(e) {
@@ -285,12 +276,9 @@ function startRecording() {
   };
 
   recognition.onend = function() {
-    // Commit de finale tekst van deze sessie vóór de herstart, zodat de nieuwe
-    // sessie schoon begint en niets dubbel wordt geteld.
-    if (sessionFinal) { finalTranscript += sessionFinal; sessionFinal = ''; }
-    // Herstart ZO SNEL MOGELIJK om geen gesproken woorden te missen in het
-    // gaatje tussen twee sessies. Lukt start() nog niet (engine nog bezig),
-    // dan heel even wachten en opnieuw proberen i.p.v. een vaste vertraging.
+    // De ENIGE echte fix t.o.v. origineel: herstart betrouwbaar maken. In het
+    // origineel werd start() één keer geprobeerd en faalde die stil (engine nog
+    // bezig) -> herkenning stierf na ~4,5 regel. Nu retry tot het lukt.
     if (isRecording) {
       var tryStart = function() {
         if (!isRecording) return;
