@@ -493,7 +493,8 @@ async function saveNote() {
     var vitalityLink = '<span style="font-size:9px">[[' + mm + '-' + yyyy + ' ' + maandNaam + ']]</span>';
 
     var NOTE_BASE = "InMyMind/01 - Dagelijks leven \uD83C\uDFE0 daily notes, weekly reviews, to-do's/01 daily";
-    var filename = NOTE_BASE + '/' + dateStr + '.md';
+    // Daily's in een jaar/maand-submap zodat de lijst niet eindeloos lang wordt
+    var filename = NOTE_BASE + '/' + yyyy + '/' + mm + '/' + dateStr + '.md';
 
     var prompt = 'Analyseer deze gesproken tekst en geef een JSON response met precies deze structuur (geen uitleg, alleen JSON):\n{"notitie": "# Titel\\n\\nInhoud", "speerpunten": ["punt 1", "punt 2", "punt 3"]}\n\nMaak de notitie rijk opgemaakt in Obsidian markdown. Regels:\n- De titel bevat GEEN datum\n- Zet direct onder de titel: \uD83D\uDCC5 Datum: ' + dateDisplay + ' | \uD83D\uDD50 Tijd: ' + timeStr + ' | ' + dagNaam + '\n- Gebruik ALTIJD emoji-icoontjes bij sectiekoppen, bijv. \uD83D\uDCCC ## Actie, \uD83D\uDCDD ## Notitie aan mezelf, \uD83D\uDCA1 ## Idee, \u2705 ## Taken, \u26A0\uFE0F ## Probleem, \uD83D\uDD04 ## Status, \uD83D\uDCCB ## Voorbereiding\n- Gebruik checkboxes (- [ ]) voor actiepunten\n- Gebruik **bold** voor belangrijke woorden\n- "speerpunten": de kernpunten van de dag voor in een maandoverzicht. Maak er zoveel als de tekst rechtvaardigt: bij een kort verhaal 2 a 3, bij een lang verhaal met veel onderwerpen gerust 6 tot 10. Vat elk los onderwerp samen in een eigen punt. Elk punt begint met een passende emoji en is kort (max ~12 woorden), geen datum of tijd, geen opmaak-tekens.\n\nGesproken tekst: "' + transcript + '"\n\nGeef ALLEEN de JSON terug, geen markdown backticks, geen uitleg.';
 
