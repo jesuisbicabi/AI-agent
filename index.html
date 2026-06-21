@@ -248,7 +248,8 @@ function startRecording() {
   recognition.interimResults = true;
   isRecording = true;
   transcript = '';
-  finalTranscript = '';
+  finalTranscript = '';      // gecommitte tekst van eerder geëindigde sessies
+  var sessionFinal = '';     // finale tekst van de HUIDIGE herkenningssessie
   document.getElementById('mic-btn').classList.add('recording');
   document.getElementById('stop-btn').style.display = 'block';
   document.getElementById('status').textContent = 'Aan het luisteren...';
@@ -258,18 +259,22 @@ function startRecording() {
   document.getElementById('response-box').style.display = 'none';
 
   recognition.onresult = function(e) {
+    // Bouw de tekst van de HUIDIGE sessie elke keer volledig opnieuw op (REPLACE),
+    // nooit incrementeel optellen. Dit voorkomt echo/dubbele woorden wanneer mobiele
+    // Chrome resultIndex op 0 laat staan en zo alle finals telkens herhaalt.
+    sessionFinal = '';
     var interim = '';
-    for (var i = e.resultIndex; i < e.results.length; i++) {
+    for (var i = 0; i < e.results.length; i++) {
       if (e.results[i].isFinal) {
-        finalTranscript += e.results[i][0].transcript + ' ';
+        sessionFinal += e.results[i][0].transcript + ' ';
       } else {
         interim += e.results[i][0].transcript;
       }
     }
-    transcript = finalTranscript;
+    transcript = (finalTranscript + sessionFinal).trim();
     var t = document.getElementById('transcript');
     t.style.display = 'block';
-    t.textContent = (finalTranscript + interim).trim();
+    t.textContent = (finalTranscript + sessionFinal + interim).trim();
   };
 
   recognition.onerror = function(e) {
@@ -277,6 +282,9 @@ function startRecording() {
   };
 
   recognition.onend = function() {
+    // Commit de finale tekst van deze sessie vóór de herstart, zodat de nieuwe
+    // sessie schoon begint en niets dubbel wordt geteld.
+    if (sessionFinal) { finalTranscript += sessionFinal; sessionFinal = ''; }
     // Chrome stopt vanzelf na stilte/tijdslimiet; herstart met kleine vertraging
     // zodat start() niet faalt met InvalidStateError.
     if (isRecording) {
