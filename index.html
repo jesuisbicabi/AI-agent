@@ -109,6 +109,7 @@
 var recognition = null;
 var isRecording = false;
 var transcript = '';
+var finalTranscript = '';
 var selectedFolder = 'InMyMind';
 var settings = {};
 
@@ -196,9 +197,10 @@ function startRecording() {
   recognition = new SR();
   recognition.lang = 'nl-NL';
   recognition.continuous = true;
-  recognition.interimResults = false;
+  recognition.interimResults = true;
   isRecording = true;
   transcript = '';
+  finalTranscript = '';
   document.getElementById('mic-btn').classList.add('recording');
   document.getElementById('stop-btn').style.display = 'block';
   document.getElementById('status').textContent = 'Aan het luisteren...';
@@ -208,14 +210,18 @@ function startRecording() {
   document.getElementById('response-box').style.display = 'none';
 
   recognition.onresult = function(e) {
+    var interim = '';
     for (var i = e.resultIndex; i < e.results.length; i++) {
       if (e.results[i].isFinal) {
-        transcript += e.results[i][0].transcript + ' ';
+        finalTranscript += e.results[i][0].transcript + ' ';
+      } else {
+        interim += e.results[i][0].transcript;
       }
     }
+    transcript = finalTranscript;
     var t = document.getElementById('transcript');
     t.style.display = 'block';
-    t.textContent = transcript.trim();
+    t.textContent = (finalTranscript + interim).trim();
   };
 
   recognition.onerror = function(e) {
@@ -223,8 +229,14 @@ function startRecording() {
   };
 
   recognition.onend = function() {
+    // Chrome stopt vanzelf na stilte/tijdslimiet; herstart met kleine vertraging
+    // zodat start() niet faalt met InvalidStateError.
     if (isRecording) {
-      try { recognition.start(); } catch(e) {}
+      setTimeout(function() {
+        if (isRecording) {
+          try { recognition.start(); } catch(e) {}
+        }
+      }, 300);
     }
   };
 
@@ -241,11 +253,11 @@ function stopRecording() {
   document.getElementById('mic-btn').classList.remove('recording');
   document.getElementById('stop-btn').style.display = 'none';
   document.getElementById('status').textContent = 'Tik om in te spreken';
+  // Het tekstveld bevat finale tekst + de laatste interim-woorden; neem de
+  // langste van beide zodat de staart van een zin niet verloren gaat.
   var finalText = transcript.trim();
-  if (!finalText) {
-    var domText = document.getElementById('transcript').textContent.trim();
-    if (domText) finalText = domText;
-  }
+  var domText = document.getElementById('transcript').textContent.trim();
+  if (domText.length > finalText.length) finalText = domText;
   transcript = finalText;
   if (transcript) {
     document.getElementById('transcript').style.display = 'block';
